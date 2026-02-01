@@ -3,17 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小狗变色魔术 - Color Game</title>
+    <title>会说话的小狗变色魔术</title>
     <style>
         :root { --brown: #6d4c41; }
         body { font-family: 'PingFang SC', sans-serif; background-color: #fff9c4; text-align: center; margin: 0; padding: 20px; overflow-x: hidden; }
         
-        /* 狗狗动画区域 */
         .dog-stage { position: relative; height: 250px; margin-bottom: 20px; }
         .dog-img { width: 180px; cursor: pointer; transition: transform 0.1s; position: relative; z-index: 2; }
         .dog-img:active { transform: scale(0.95) translateY(5px); }
         
-        /* 抖动动画 */
         .shaking { animation: shake 0.5s ease-in-out; }
         @keyframes shake {
             0%, 100% { transform: rotate(0deg); }
@@ -21,48 +19,42 @@
             75% { transform: rotate(5deg) translateY(5px); }
         }
 
-        /* 拉粑粑动画 */
         .poop-anim {
-            position: absolute;
-            width: 60px;
-            left: 50%;
-            top: 100px;
-            margin-left: -80px; /* 从狗狗屁股后面出来 */
-            z-index: 1;
+            position: absolute; width: 60px; left: 50%; top: 100px; margin-left: -80px; z-index: 1;
             animation: shoot 0.8s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         @keyframes shoot {
             0% { transform: scale(0) translate(0, 0); opacity: 1; }
-            100% { transform: scale(1) translate(-20px, 150px); opacity: 0; } /* 飞向格子的动画 */
+            100% { transform: scale(1) translate(-20px, 150px); opacity: 0; }
         }
 
-        /* 游戏网格 */
         .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 900px; margin: 0 auto; }
         .slot { border: 3px dashed #bcaaa4; border-radius: 15px; padding: 10px; background: white; min-height: 120px; transition: 0.3s; }
-        .slot.active { border-style: solid; border-color: #795548; background-color: #fff; }
+        .slot.active { border-style: solid; border-color: #795548; }
         .slot img { width: 80px; opacity: 0; transition: opacity 0.5s; }
         .slot.revealed img { opacity: 1; }
         .slot.correct { background-color: #e8f5e9; border-color: #4caf50; }
 
-        /* 标签库 */
         .word-bank { margin-top: 30px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 20px; background: rgba(255,255,255,0.7); border-radius: 20px; }
         .word { background: var(--brown); color: white; padding: 8px 15px; border-radius: 8px; cursor: grab; font-size: 1.1em; }
         .word.hidden { visibility: hidden; }
         .pinyin { font-size: 0.6em; display: block; }
+
+        #message { margin-top: 25px; font-size: 2em; color: #d32f2f; font-weight: bold; height: 45px; }
     </style>
 </head>
 <body>
 
-    <h1>🐶 点击狗狗拉出颜色！💩</h1>
-    <p>点击小狗，看看它拉出了什么颜色，然后把词语拖上去！</p>
+    <h1>🐶 会说话的小狗魔术 🎤</h1>
+    <p>点击小狗听声音，然后拖动单词匹配！</p>
 
     <div class="dog-stage">
         <img src="dog.png" id="dog" class="dog-img" onclick="makePoop()" alt="Dog">
     </div>
 
     <div class="grid" id="grid"></div>
-    <div id="message" style="font-size: 2em; margin: 20px; height: 40px; color: #d32f2f;"></div>
+    <div id="message"></div>
     <div class="word-bank" id="wordBank"></div>
 
     <script>
@@ -79,9 +71,17 @@
             { name: '橙色', py: 'chéng sè', file: 'orange.png' }
         ];
 
-        let revealedCount = 0;
         let matchedCount = 0;
         const availableColors = [...colors];
+
+        // --- 朗读功能函数 ---
+        function speak(text) {
+            const msg = new SpeechSynthesisUtterance();
+            msg.text = text;
+            msg.lang = 'zh-CN'; // 设置为中文
+            msg.rate = 0.8;      // 语速稍微慢一点，方便学生听清
+            window.speechSynthesis.speak(msg);
+        }
 
         // 初始化格子
         const grid = document.getElementById('grid');
@@ -89,16 +89,20 @@
             const div = document.createElement('div');
             div.className = 'slot';
             div.id = 'slot-' + c.name;
-            div.innerHTML = `<img src="${c.file}" id="img-${c.name}">`;
-            
+            div.innerHTML = `<img src="${c.file}">`;
             div.ondragover = e => e.preventDefault();
             div.ondrop = e => {
                 const name = e.dataTransfer.getData('text');
-                if(name === c.name && div.classList.contains('revealed')) {
-                    div.classList.add('correct');
+                const slot = document.getElementById('slot-' + c.name);
+                if(name === c.name && slot.classList.contains('revealed')) {
+                    slot.classList.add('correct');
                     document.getElementById('word-' + name).classList.add('hidden');
+                    speak("正确！"); // 匹配正确朗读
                     matchedCount++;
-                    if(matchedCount === colors.length) document.getElementById('message').innerText = "🎊 太牛了！清理完毕！";
+                    if(matchedCount === colors.length) {
+                        document.getElementById('message').innerText = "🎊 太棒了！全部完成！";
+                        speak("太棒了！你全都找对了！");
+                    }
                 }
             };
             grid.appendChild(div);
@@ -116,7 +120,7 @@
             bank.appendChild(div);
         });
 
-        // 点击狗狗拉粑粑
+        // 点击狗狗动作
         function makePoop() {
             if (availableColors.length === 0) return;
 
@@ -124,17 +128,17 @@
             dog.classList.add('shaking');
             setTimeout(() => dog.classList.remove('shaking'), 500);
 
-            // 随机取一个还没出现的颜色
             const index = Math.floor(Math.random() * availableColors.length);
             const color = availableColors.splice(index, 1)[0];
 
-            // 创建动画元素
             const poop = document.createElement('img');
             poop.src = color.file;
             poop.className = 'poop-anim';
             document.querySelector('.dog-stage').appendChild(poop);
 
-            // 动画结束后显示格子里的颜色
+            // 拉出来时朗读颜色名
+            speak(color.name);
+
             setTimeout(() => {
                 poop.remove();
                 const slot = document.getElementById('slot-' + color.name);
