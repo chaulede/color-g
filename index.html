@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>颜色配对挑战 - Color Game</title>
+    <style>
+        body { font-family: 'PingFang SC', sans-serif; background-color: #fff9c4; text-align: center; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        /* 狗狗和标题区域 */
+        .dog-section img { width: 220px; filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.1)); }
+        h1 { color: #5d4037; font-size: 2em; margin: 10px 0; }
+
+        /* 游戏网格 */
+        .game-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-top: 20px; }
+        @media (max-width: 700px) { .game-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        .slot { border: 3px dashed #bcaaa4; border-radius: 15px; padding: 10px; background: white; transition: 0.3s; }
+        .slot img { width: 100px; height: auto; display: block; margin: 0 auto; }
+        .slot.correct { border: 3px solid #4caf50; background-color: #e8f5e9; }
+        .label-text { margin-top: 10px; font-weight: bold; color: #2e7d32; font-size: 1.2em; min-height: 1.2em; }
+
+        /* 单词库 */
+        .word-bank { margin-top: 40px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; padding: 20px; background: #fff; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .word { background: #795548; color: white; padding: 10px 20px; border-radius: 10px; cursor: grab; font-size: 1.2em; box-shadow: 0 4px #5d4037; }
+        .word:active { cursor: grabbing; transform: translateY(2px); }
+        .word.hidden { opacity: 0; pointer-events: none; }
+        .pinyin { font-size: 0.6em; display: block; opacity: 0.9; }
+
+        #success-msg { font-size: 2em; color: #d32f2f; font-weight: bold; margin-top: 20px; min-height: 1.2em; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="dog-section">
+        <img src="dog.png" alt="Dog"> <h1>🎨 颜色配对挑战 🐶</h1>
+    </div>
+
+    <div id="success-msg"></div>
+
+    <div class="game-grid" id="slots"></div>
+
+    <div class="word-bank" id="words"></div>
+</div>
+
+<script>
+    // 这里的 filename 必须和你保存的图片文件名一模一样
+    const colorData = [
+        { name: '红色', py: 'hóng sè', file: 'red.png' },
+        { name: '绿色', py: 'lǜ sè', file: 'green.png' },
+        { name: '蓝色', py: 'lán sè', file: 'blue.png' },
+        { name: '黄色', py: 'huáng sè', file: 'yellow.png' },
+        { name: '黑色', py: 'hēi sè', file: 'black.png' },
+        { name: '白色', py: 'bái sè', file: 'white.png' },
+        { name: '棕色', py: 'zōng sè', file: 'brown.png' },
+        { name: '紫色', py: 'zǐ sè', file: 'purple.png' },
+        { name: '粉色', py: 'fěn sè', file: 'pink.png' },
+        { name: '橙色', py: 'chéng sè', file: 'orange.png' }
+    ];
+
+    const slotsContainer = document.getElementById('slots');
+    const wordsContainer = document.getElementById('words');
+    let matchedCount = 0;
+
+    // 随机排序展示图片
+    [...colorData].sort(() => Math.random() - 0.5).forEach(item => {
+        const slot = document.createElement('div');
+        slot.className = 'slot';
+        slot.dataset.target = item.name;
+        slot.innerHTML = `<img src="${item.file}"><div class="label-text" id="label-${item.name}"></div>`;
+        
+        slot.ondragover = e => e.preventDefault();
+        slot.ondrop = e => {
+            const wordName = e.dataTransfer.getData('text');
+            if(wordName === item.name) {
+                slot.classList.add('correct');
+                document.getElementById('label-'+wordName).innerText = wordName;
+                document.getElementById('word-'+wordName).classList.add('hidden');
+                matchedCount++;
+                if(matchedCount === colorData.length) {
+                    document.getElementById('success-msg').innerText = "🎉 太棒了！全部找对了！";
+                }
+            }
+        };
+        slotsContainer.appendChild(slot);
+    });
+
+    // 随机排序展示单词
+    [...colorData].sort(() => Math.random() - 0.5).forEach(item => {
+        const word = document.createElement('div');
+        word.className = 'word';
+        word.id = 'word-' + item.name;
+        word.draggable = true;
+        word.innerHTML = `<span class="pinyin">${item.py}</span>${item.name}`;
+        word.ondragstart = e => e.dataTransfer.setData('text', item.name);
+        wordsContainer.appendChild(word);
+    });
+</script>
+
+</body>
+</html>
