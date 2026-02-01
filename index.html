@@ -3,123 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>颜色配对挑战 - Color Game</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/drag-drop-touch/1.1.0/dragdroptouch.js"></script>
+    <title>小狗变色魔术 - Color Game</title>
     <style>
-        body { font-family: 'PingFang SC', sans-serif; background-color: #fff9c4; text-align: center; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .dog-section img { width: 180px; filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.1)); }
-        h1 { color: #5d4037; }
+        :root { --brown: #6d4c41; }
+        body { font-family: 'PingFang SC', sans-serif; background-color: #fff9c4; text-align: center; margin: 0; padding: 20px; overflow-x: hidden; }
+        
+        /* 狗狗动画区域 */
+        .dog-stage { position: relative; height: 250px; margin-bottom: 20px; }
+        .dog-img { width: 180px; cursor: pointer; transition: transform 0.1s; position: relative; z-index: 2; }
+        .dog-img:active { transform: scale(0.95) translateY(5px); }
+        
+        /* 抖动动画 */
+        .shaking { animation: shake 0.5s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-5deg) translateY(5px); }
+            75% { transform: rotate(5deg) translateY(5px); }
+        }
 
-        /* 放置框区域 */
-        .game-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-top: 20px; }
-        @media (max-width: 700px) { .game-grid { grid-template-columns: repeat(2, 1fr); } }
+        /* 拉粑粑动画 */
+        .poop-anim {
+            position: absolute;
+            width: 60px;
+            left: 50%;
+            top: 100px;
+            margin-left: -80px; /* 从狗狗屁股后面出来 */
+            z-index: 1;
+            animation: shoot 0.8s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
 
-        .slot { border: 3px dashed #bcaaa4; border-radius: 15px; padding: 10px; background: white; transition: 0.3s; min-height: 120px; }
-        /* 拖拽悬停时的效果 */
-        .slot.drag-over { background-color: #f0f0f0; border-color: #795548; }
-        .slot img { width: 90px; height: auto; pointer-events: none; }
-        .slot.correct { border: 3px solid #4caf50; background-color: #e8f5e9; }
-        .label-text { margin-top: 10px; font-weight: bold; color: #2e7d32; font-size: 1.1em; min-height: 1.2em; }
+        @keyframes shoot {
+            0% { transform: scale(0) translate(0, 0); opacity: 1; }
+            100% { transform: scale(1) translate(-20px, 150px); opacity: 0; } /* 飞向格子的动画 */
+        }
 
-        /* 单词库区域 */
-        .word-bank { margin-top: 40px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; padding: 20px; background: white; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .word { background: #795548; color: white; padding: 10px 18px; border-radius: 10px; cursor: grab; font-size: 1.1em; box-shadow: 0 4px #5d4037; user-select: none; }
-        .word:active { cursor: grabbing; }
-        .word.hidden { visibility: hidden; } /* 匹配成功后隐藏单词 */
+        /* 游戏网格 */
+        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; max-width: 900px; margin: 0 auto; }
+        .slot { border: 3px dashed #bcaaa4; border-radius: 15px; padding: 10px; background: white; min-height: 120px; transition: 0.3s; }
+        .slot.active { border-style: solid; border-color: #795548; background-color: #fff; }
+        .slot img { width: 80px; opacity: 0; transition: opacity 0.5s; }
+        .slot.revealed img { opacity: 1; }
+        .slot.correct { background-color: #e8f5e9; border-color: #4caf50; }
 
-        #success-msg { font-size: 2em; color: #d32f2f; font-weight: bold; margin-top: 20px; height: 50px; }
+        /* 标签库 */
+        .word-bank { margin-top: 30px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 20px; background: rgba(255,255,255,0.7); border-radius: 20px; }
+        .word { background: var(--brown); color: white; padding: 8px 15px; border-radius: 8px; cursor: grab; font-size: 1.1em; }
+        .word.hidden { visibility: hidden; }
+        .pinyin { font-size: 0.6em; display: block; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="dog-section">
-        <img src="dog.png" alt="小狗"> 
-        <h1>🎨 颜色配对挑战 🐶</h1>
+    <h1>🐶 点击狗狗拉出颜色！💩</h1>
+    <p>点击小狗，看看它拉出了什么颜色，然后把词语拖上去！</p>
+
+    <div class="dog-stage">
+        <img src="dog.png" id="dog" class="dog-img" onclick="makePoop()" alt="Dog">
     </div>
 
-    <div id="success-msg"></div>
-    <div class="game-grid" id="slots"></div>
-    <div class="word-bank" id="words"></div>
-</div>
+    <div class="grid" id="grid"></div>
+    <div id="message" style="font-size: 2em; margin: 20px; height: 40px; color: #d32f2f;"></div>
+    <div class="word-bank" id="wordBank"></div>
 
-<script>
-    // 1. 配置数据：这里的 file 必须和你上传到 GitHub 的图片名完全一致
-    const colorData = [
-        { name: '红色', py: 'hóng sè', file: 'red.png' },
-        { name: '绿色', py: 'lǜ sè', file: 'green.png' },
-        { name: '蓝色', py: 'lán sè', file: 'blue.png' },
-        { name: '黄色', py: 'huáng sè', file: 'yellow.png' },
-        { name: '黑色', py: 'hēi sè', file: 'black.png' },
-        { name: '白色', py: 'bái sè', file: 'white.png' },
-        { name: '棕色', py: 'zōng sè', file: 'brown.png' },
-        { name: '紫色', py: 'zǐ sè', file: 'purple.png' },
-        { name: '粉色', py: 'fěn sè', file: 'pink.png' },
-        { name: '橙色', py: 'chéng sè', file: 'orange.png' }
-    ];
+    <script>
+        const colors = [
+            { name: '红色', py: 'hóng sè', file: 'red.png' },
+            { name: '绿色', py: 'lǜ sè', file: 'green.png' },
+            { name: '蓝色', py: 'lán sè', file: 'blue.png' },
+            { name: '黄色', py: 'huáng sè', file: 'yellow.png' },
+            { name: '黑色', py: 'hēi sè', file: 'black.png' },
+            { name: '白色', py: 'bái sè', file: 'white.png' },
+            { name: '棕色', py: 'zōng sè', file: 'brown.png' },
+            { name: '紫色', py: 'zǐ sè', file: 'purple.png' },
+            { name: '粉色', py: 'fěn sè', file: 'pink.png' },
+            { name: '橙色', py: 'chéng sè', file: 'orange.png' }
+        ];
 
-    const slotsContainer = document.getElementById('slots');
-    const wordsContainer = document.getElementById('words');
-    let matchedCount = 0;
+        let revealedCount = 0;
+        let matchedCount = 0;
+        const availableColors = [...colors];
 
-    // 2. 生成图片放置框 (打乱顺序)
-    [...colorData].sort(() => Math.random() - 0.5).forEach(item => {
-        const slot = document.createElement('div');
-        slot.className = 'slot';
-        slot.dataset.target = item.name;
-        slot.innerHTML = `<img src="${item.file}"><div class="label-text" id="label-${item.name}"></div>`;
-        
-        // 动作：拖拽经过
-        slot.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            slot.classList.add('drag-over');
-        });
-
-        // 动作：拖拽离开
-        slot.addEventListener('dragleave', () => {
-            slot.classList.remove('drag-over');
-        });
-
-        // 动作：放下单词
-        slot.addEventListener('drop', (e) => {
-            e.preventDefault();
-            slot.classList.remove('drag-over');
-            const wordName = e.dataTransfer.getData('text');
+        // 初始化格子
+        const grid = document.getElementById('grid');
+        colors.forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'slot';
+            div.id = 'slot-' + c.name;
+            div.innerHTML = `<img src="${c.file}" id="img-${c.name}">`;
             
-            if(wordName === item.name) {
-                // 匹配正确
-                slot.classList.add('correct');
-                document.getElementById('label-' + wordName).innerText = wordName;
-                document.getElementById('word-' + wordName).classList.add('hidden');
-                matchedCount++;
-                if(matchedCount === colorData.length) {
-                    document.getElementById('success-msg').innerText = "🎊 太棒了！你全都找对了！🌟";
+            div.ondragover = e => e.preventDefault();
+            div.ondrop = e => {
+                const name = e.dataTransfer.getData('text');
+                if(name === c.name && div.classList.contains('revealed')) {
+                    div.classList.add('correct');
+                    document.getElementById('word-' + name).classList.add('hidden');
+                    matchedCount++;
+                    if(matchedCount === colors.length) document.getElementById('message').innerText = "🎊 太牛了！清理完毕！";
                 }
-            } else {
-                // 匹配错误时的反馈（可选）
-                slot.style.borderColor = "red";
-                setTimeout(() => slot.style.borderColor = "", 500);
-            }
+            };
+            grid.appendChild(div);
         });
-        slotsContainer.appendChild(slot);
-    });
 
-    // 3. 生成单词库 (打乱顺序)
-    [...colorData].sort(() => Math.random() - 0.5).forEach(item => {
-        const word = document.createElement('div');
-        word.className = 'word';
-        word.id = 'word-' + item.name;
-        word.draggable = true; // 开启拖拽属性
-        word.innerHTML = `<span class="pinyin">${item.py}</span>${item.name}`;
-        
-        // 动作：开始拖拽
-        word.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text', item.name);
+        // 初始化词库
+        const bank = document.getElementById('wordBank');
+        [...colors].sort(() => Math.random() - 0.5).forEach(c => {
+            const div = document.createElement('div');
+            div.className = 'word';
+            div.id = 'word-' + c.name;
+            div.draggable = true;
+            div.innerHTML = `<span class="pinyin">${c.py}</span>${c.name}`;
+            div.ondragstart = e => e.dataTransfer.setData('text', c.name);
+            bank.appendChild(div);
         });
-        wordsContainer.appendChild(word);
-    });
-</script>
 
+        // 点击狗狗拉粑粑
+        function makePoop() {
+            if (availableColors.length === 0) return;
+
+            const dog = document.getElementById('dog');
+            dog.classList.add('shaking');
+            setTimeout(() => dog.classList.remove('shaking'), 500);
+
+            // 随机取一个还没出现的颜色
+            const index = Math.floor(Math.random() * availableColors.length);
+            const color = availableColors.splice(index, 1)[0];
+
+            // 创建动画元素
+            const poop = document.createElement('img');
+            poop.src = color.file;
+            poop.className = 'poop-anim';
+            document.querySelector('.dog-stage').appendChild(poop);
+
+            // 动画结束后显示格子里的颜色
+            setTimeout(() => {
+                poop.remove();
+                const slot = document.getElementById('slot-' + color.name);
+                slot.classList.add('revealed');
+                slot.classList.add('active');
+            }, 700);
+        }
+    </script>
 </body>
 </html>
